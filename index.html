@@ -1,0 +1,65 @@
+Create templates/index.html:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Task Reminder</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
+        input, button { width: 100%; padding: 10px; margin-top: 10px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
+        ul { padding: 0; list-style: none; }
+        li { background: #f4f4f4; margin-top: 5px; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>Set Task Reminder</h2>
+    <input type="text" id="task" placeholder="Task description..." required>
+    <input type="datetime-local" id="remind_at" required>
+    <button onclick="addReminder()">Save Task</button>
+
+    <h3>Scheduled Tasks</h3>
+    <ul id="list"></ul>
+</div>
+
+<script>
+    async function fetchReminders() {
+        const res = await fetch('/api/reminders');
+        const data = await res.json();
+        const list = document.getElementById('list');
+        list.innerHTML = '';
+        data.forEach(r => {
+            const item = document.createElement('li');
+            item.textContent = `${r.task} — ${new Date(r.remind_at).toLocaleString()} ${r.is_notified ? '✓' : ''}`;
+            list.appendChild(item);
+        });
+    }
+
+    async function addReminder() {
+        const task = document.getElementById('task').value;
+        const timeVal = document.getElementById('remind_at').value;
+        if(!task || !timeVal) return alert('Fill all fields');
+
+        await fetch('/api/reminders', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ task, remind_at: new Date(timeVal).toISOString() })
+        });
+        fetchReminders();
+    }
+
+    // Check every 5 seconds for due reminders
+    setInterval(async () => {
+        const res = await fetch('/api/check-reminders');
+        const due = await res.json();
+        due.forEach(r => alert(`🔔 REMINDER: ${r.task}`));
+        if(due.length > 0) fetchReminders();
+    }, 5000);
+
+    fetchReminders();
+</script>
+</body>
+</html>
